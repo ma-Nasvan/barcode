@@ -3,7 +3,7 @@ let products = [
     { id: 1, sku: "SKU001", name: "Red T-Shirt", current_stock: 10, description: "A comfortable red t-shirt." },
     { id: 2, sku: "SKU002", name: "Blue Jeans", current_stock: 5, description: "Stylish blue denim jeans." },
     { id: 3, sku: "SKU003", name: "Green Hat", current_stock: 15, description: "A cool green baseball cap." },
-    { id: 4, sku: "SKU004", name: "Black Socks (Pair)", current_stock: 25, description: "Comfortable black cotton socks." },
+    { id: 4, sku: "0000080653", name: "Black Socks (Pair)", current_stock: 25, description: "Comfortable black cotton socks." },
   ];
   
   // Simulate API call to fetch product by SKU
