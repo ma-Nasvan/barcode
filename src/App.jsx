@@ -13,12 +13,16 @@ function App() {
   const [error, setError] = useState('');
   const [showMobileScanner, setShowMobileScanner] = useState(false);
   const [scannerKey, setScannerKey] = useState(0); 
+  const [sku,setSku] = useState('');
+  // Removed useEffect for getAllProducts as it's static for demo
   const resetMessages = () => {
     setMessage('');
     setError('');
   };
 
   const handleSkuScanned = async (sku) => {
+    setSku(sku);
+    console.log("Handling SKU Scanned:", sku);
     resetMessages();
     setScannedProduct(null);
     if (showMobileScanner) {
@@ -102,7 +106,7 @@ function App() {
       />
     )}
         </div>
-
+        {sku && <p className="message scanned-sku">Scanned SKU: {sku}</p>}
         {error && <p className="message error-message">{error}</p>}
         {message && <p className="message success-message">{message}</p>}
 
