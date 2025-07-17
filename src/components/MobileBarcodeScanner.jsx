@@ -14,7 +14,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
     const cleanupScanner = async () => {
         if (scannerRef.current) {
             try {
-                if (scannerRef.current.getState() === 2) { // State 2 is SCANNING
+                if (scannerRef.current.getState() === 2) {
                     await scannerRef.current.stop();
                 }
                 await scannerRef.current.clear();
@@ -48,10 +48,10 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
     };
 
     const initializeScanner = async () => {
-        if (isInitializing) return; // Prevent multiple initializations
-        
+        if (isInitializing) return;
+
         setIsInitializing(true);
-        await cleanupScanner(); // Reset before starting new
+        await cleanupScanner();
 
         setErrorMessage('');
         const scannerDiv = document.getElementById(scannerElementId);
@@ -64,14 +64,11 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
         const html5QrCode = new Html5Qrcode(scannerElementId);
         scannerRef.current = html5QrCode;
 
-        // Optimized configuration for small QR codes
         const config = {
-            fps: 20, // Balanced FPS for performance
+            fps: 20,
             qrbox: function(viewfinderWidth, viewfinderHeight) {
-                // Smaller QR box for better small code detection
-                const minEdgePercentage = 0.6; // 60% of the smaller dimension
                 const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-                const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+                const qrboxSize = Math.floor(minEdgeSize * 0.6);
                 return {
                     width: qrboxSize,
                     height: qrboxSize
@@ -90,14 +87,24 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             supportTorch: true
         };
 
-        // Simple camera configuration
-        const cameraConfig = {
-            facingMode: "environment"
-        };
-
         try {
+            const devices = await Html5Qrcode.getCameras();
+            if (!devices || devices.length === 0) {
+                setErrorMessage("No camera devices found.");
+                setIsInitializing(false);
+                return;
+            }
+
+            // Try to find rear-facing camera
+            const rearCamera = devices.find(device =>
+                device.label.toLowerCase().includes("back") ||
+                device.label.toLowerCase().includes("rear")
+            );
+
+            const selectedCameraId = rearCamera ? rearCamera.id : devices[0].id;
+
             await html5QrCode.start(
-                cameraConfig,
+                { deviceId: { exact: selectedCameraId } },
                 config,
                 (decodedText, decodedResult) => {
                     console.log("Scan result:", decodedText);
@@ -105,14 +112,13 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                     setIsScanning(false);
                 },
                 (scanError) => {
-                    // Optional: handle scan errors silently
+                    // Silent scan error
                 }
             );
 
             setIsScanning(true);
             setIsInitializing(false);
-            
-            // Check if flash is available
+
             setTimeout(() => {
                 try {
                     const capabilities = html5QrCode.getRunningTrackCapabilities();
@@ -122,7 +128,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                 } catch (capErr) {
                     console.log("Flash capability check failed:", capErr);
                 }
-            }, 1000); // Wait a bit for camera to initialize
+            }, 1000);
 
         } catch (err) {
             console.error("Failed to start scanner:", err);
