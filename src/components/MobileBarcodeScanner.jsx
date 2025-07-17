@@ -55,7 +55,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
 
         // Use high-resolution environment-facing camera
         const cameraConfig = {
-            facingMode: { exact: "environment" },
+            facingMode: "environment",
             width: { ideal: 1920 },
             height: { ideal: 1080 }
         };
@@ -89,7 +89,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
 
     return (
         <div style={{ maxWidth: '400px', margin: '20px auto' }}>
-            <div 
+            <div
                 id={scannerElementId}
                 style={{
                     border: '1px solid #ccc',
