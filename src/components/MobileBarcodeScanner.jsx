@@ -5,6 +5,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
     const scannerRef = useRef(null);
     const scannerElementId = "mobile-scanner-region";
     const [isScanning, setIsScanning] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [hasFlash, setHasFlash] = useState(false);
     const [isFlashOn, setIsFlashOn] = useState(false);
@@ -13,7 +14,9 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
     const cleanupScanner = async () => {
         if (scannerRef.current) {
             try {
-                await scannerRef.current.stop();
+                if (scannerRef.current.getState() === 2) { // State 2 is SCANNING
+                    await scannerRef.current.stop();
+                }
                 await scannerRef.current.clear();
             } catch (err) {
                 console.error("Error cleaning up scanner:", err);
@@ -26,10 +29,13 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             scannerDiv.innerHTML = '';
         }
         setIsScanning(false);
+        setIsInitializing(false);
+        setHasFlash(false);
+        setIsFlashOn(false);
     };
 
     const toggleFlash = async () => {
-        if (scannerRef.current && hasFlash) {
+        if (scannerRef.current && hasFlash && isScanning) {
             try {
                 await scannerRef.current.applyVideoConstraints({
                     torch: !isFlashOn
@@ -42,12 +48,16 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
     };
 
     const initializeScanner = async () => {
+        if (isInitializing) return; // Prevent multiple initializations
+        
+        setIsInitializing(true);
         await cleanupScanner(); // Reset before starting new
 
         setErrorMessage('');
         const scannerDiv = document.getElementById(scannerElementId);
         if (!scannerDiv) {
             setErrorMessage("Scanner container not found.");
+            setIsInitializing(false);
             return;
         }
 
@@ -86,34 +96,29 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             verbose: false
         };
 
-        // Enhanced camera configuration for better focus on small codes
+        // Camera configuration - html5-qrcode expects specific format
         const cameraConfig = {
-            facingMode: "environment",
-            // Advanced constraints for better focus and resolution
-            advanced: [
-                {
-                    focusMode: "continuous",
-                    exposureMode: "continuous",
-                    whiteBalanceMode: "continuous"
-                }
-            ]
+            facingMode: "environment"
         };
 
-        // Alternative: Use specific video constraints for better quality
-        const videoConstraints = {
-            facingMode: { exact: "environment" },
-            width: { ideal: 1920, min: 640 },
-            height: { ideal: 1080, min: 480 },
-            focusMode: "continuous",
-            exposureMode: "continuous",
-            whiteBalanceMode: "continuous"
+        // Enhanced configuration for better video quality
+        const enhancedConfig = {
+            ...config,
+            videoConstraints: {
+                facingMode: "environment",
+                width: { ideal: 1920, min: 640 },
+                height: { ideal: 1080, min: 480 },
+                focusMode: "continuous",
+                exposureMode: "continuous",
+                whiteBalanceMode: "continuous"
+            }
         };
 
         try {
-            // Try with enhanced video constraints first
+            // Try with enhanced config first
             await html5QrCode.start(
-                videoConstraints,
-                config,
+                cameraConfig,
+                enhancedConfig,
                 (decodedText, decodedResult) => {
                     console.log("Scan result:", decodedText);
                     if (onScanSuccess) onScanSuccess(decodedText, decodedResult);
@@ -125,17 +130,22 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             );
 
             setIsScanning(true);
+            setIsInitializing(false);
             
             // Check if flash is available
-            const capabilities = html5QrCode.getRunningTrackCapabilities();
-            if (capabilities && capabilities.torch) {
-                setHasFlash(true);
+            try {
+                const capabilities = html5QrCode.getRunningTrackCapabilities();
+                if (capabilities && capabilities.torch) {
+                    setHasFlash(true);
+                }
+            } catch (capErr) {
+                console.log("Flash capability check failed:", capErr);
             }
 
         } catch (err) {
-            console.error("Failed to start scanner with enhanced constraints:", err);
+            console.error("Failed to start scanner with enhanced config:", err);
             
-            // Fallback to basic camera config
+            // Fallback to basic config
             try {
                 await html5QrCode.start(
                     cameraConfig,
@@ -150,15 +160,21 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                     }
                 );
                 setIsScanning(true);
+                setIsInitializing(false);
                 
                 // Check if flash is available
-                const capabilities = html5QrCode.getRunningTrackCapabilities();
-                if (capabilities && capabilities.torch) {
-                    setHasFlash(true);
+                try {
+                    const capabilities = html5QrCode.getRunningTrackCapabilities();
+                    if (capabilities && capabilities.torch) {
+                        setHasFlash(true);
+                    }
+                } catch (capErr) {
+                    console.log("Flash capability check failed:", capErr);
                 }
             } catch (fallbackErr) {
                 console.error("Fallback scanner failed:", fallbackErr);
                 setErrorMessage("Camera initialization failed. Please check permissions and try again.");
+                setIsInitializing(false);
                 if (onScanError) onScanError(fallbackErr.message || fallbackErr);
             }
         }
@@ -197,7 +213,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
-                {!isScanning && !errorMessage && (
+                {!isScanning && !errorMessage && !isInitializing && (
                     <button
                         onClick={initializeScanner}
                         style={{
@@ -213,6 +229,20 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                     >
                         Restart Scanner
                     </button>
+                )}
+
+                {isInitializing && (
+                    <div style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#f8f9fa',
+                        color: '#6c757d',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                    }}>
+                        Initializing...
+                    </div>
                 )}
 
                 {isScanning && hasFlash && (
