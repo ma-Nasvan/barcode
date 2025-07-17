@@ -1,100 +1,105 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { BrowserMultiFormatReader, BarcodeFormat } from '@zxing/browser';
+import { DecodeHintType } from '@zxing/library';
+
 
 const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
     const scannerRef = useRef(null);
-    const scannerElementId = "mobile-scanner-region";
+    const videoRef = useRef(null);
     const [isScanning, setIsScanning] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
 
-    // Cleanup scanner
-    const cleanupScanner = async () => {
-        if (scannerRef.current) {
-            try {
-                await scannerRef.current.stop();
-                await scannerRef.current.clear();
-            } catch (err) {
-                console.error("Error cleaning up scanner:", err);
-            }
-            scannerRef.current = null;
-        }
-
-        const scannerDiv = document.getElementById(scannerElementId);
-        if (scannerDiv) {
-            scannerDiv.innerHTML = '';
-        }
-        setIsScanning(false);
-    };
+    const supportedFormats = [
+        BarcodeFormat.QR_CODE,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.UPC_A
+    ];
 
     const initializeScanner = async () => {
-        await cleanupScanner(); // Reset before starting new
-
         setErrorMessage('');
-        const scannerDiv = document.getElementById(scannerElementId);
-        if (!scannerDiv) {
-            setErrorMessage("Scanner container not found.");
-            return;
-        }
+        setIsScanning(false);
+        
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, supportedFormats);
 
-        const html5QrCode = new Html5Qrcode(scannerElementId);
-        scannerRef.current = html5QrCode;
+        const codeReader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 200 });
+        scannerRef.current = codeReader;
 
-        const config = {
-            fps: 15,
-            qrbox: { width: 150, height: 150 },
-            formatsToSupport: [
-                Html5QrcodeSupportedFormats.CODE_128,
-                Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.UPC_A,
-                Html5QrcodeSupportedFormats.QR_CODE
-            ],
-            experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true
-            }
-        };
-
-     
-   const cameraConfig = {
-  facingMode: "environment"
-};
         try {
-            await html5QrCode.start(
-                cameraConfig,
-                config,
-                (decodedText, decodedResult) => {
-                    console.log("Scan result:", decodedText);
-                    if (onScanSuccess) onScanSuccess(decodedText, decodedResult);
-                    setIsScanning(false);
+            const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices();
+            const backCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back')) || videoInputDevices[0];
+
+            if (!backCamera) {
+                throw new Error("No camera found");
+            }
+
+            await codeReader.decodeFromVideoDevice(
+                backCamera.deviceId,
+                videoRef.current,
+                (result, err) => {
+                    if (result) {
+                        codeReader.reset(); // Stop scanning after first result
+                        setIsScanning(false);
+                        if (onScanSuccess) onScanSuccess(result.getText(), result);
+                    }
+                    // (Optional) You can handle scan errors or continue silently
                 },
-                (scanError) => {
-                    // Optional: handle scan errors (don't spam)
+                {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
                 }
             );
 
             setIsScanning(true);
         } catch (err) {
-            console.error("Failed to start scanner:", err);
-            setErrorMessage("Camera initialization failed. Please check permissions.");
+            console.error("Scanner error:", err);
+            setErrorMessage("Failed to initialize camera. Please check permissions or try a different device.");
             if (onScanError) onScanError(err.message || err);
         }
     };
 
+    const cleanupScanner = async () => {
+        if (scannerRef.current) {
+            await scannerRef.current.reset();
+            scannerRef.current = null;
+        }
+        setIsScanning(false);
+    };
+
     useEffect(() => {
         initializeScanner();
-        return cleanupScanner;
+        return () => {
+            cleanupScanner();
+        };
     }, []);
 
     return (
         <div style={{ maxWidth: '400px', margin: '20px auto' }}>
             <div
-                id={scannerElementId}
                 style={{
                     border: '1px solid #ccc',
                     borderRadius: '5px',
                     minHeight: '200px',
-                    backgroundColor: '#f0f0f0'
+                    backgroundColor: '#000',
+                    position: 'relative'
                 }}
-            />
+            >
+                <video
+                    ref={videoRef}
+                    style={{
+                        width: '100%',
+                        height: 'auto',
+                        borderRadius: '5px'
+                    }}
+                    muted
+                    autoPlay
+                    playsInline
+                />
+            </div>
 
             {errorMessage && (
                 <div style={{ color: 'red', marginTop: '10px', textAlign: 'center' }}>
@@ -121,7 +126,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             )}
 
             <p style={{ textAlign: 'center', fontSize: '14px', color: '#666' }}>
-                Tip: Bring the QR code closer and use good lighting. Torch support will show if available.
+                Tip: Hold the QR or barcode steady and ensure good lighting.
             </p>
         </div>
     );
