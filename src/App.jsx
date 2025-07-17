@@ -87,6 +87,9 @@ function App() {
         <div className="scan-section">
           <h2>Scan Product SKU</h2>
           <HardwareScanInput onScan={handleSkuScanned} />
+          {sku.length>0 && (
+            <p className="message scanned-sku">Scanned SKU: {sku}</p>
+          )}
           <button
             onClick={toggleMobileScanner}
             className="toggle-scanner-btn"
