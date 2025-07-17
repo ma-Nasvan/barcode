@@ -53,13 +53,10 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             }
         };
 
-        // Use high-resolution environment-facing camera
-        const cameraConfig = {
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-        };
-
+     
+   const cameraConfig = {
+  facingMode: "environment"
+};
         try {
             await html5QrCode.start(
                 cameraConfig,
