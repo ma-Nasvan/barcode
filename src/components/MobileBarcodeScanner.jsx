@@ -50,7 +50,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                 scannerElementId,
                 {
                     fps: 10,
-                    qrbox: { width: 150, height: 150 },
+                    qrbox: { width: 100, height: 100 },
                     formatsToSupport: [
                         Html5QrcodeSupportedFormats.CODE_128,
                         Html5QrcodeSupportedFormats.EAN_13,
