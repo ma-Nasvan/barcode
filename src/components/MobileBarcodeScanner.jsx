@@ -64,12 +64,12 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
         const html5QrCode = new Html5Qrcode(scannerElementId);
         scannerRef.current = html5QrCode;
 
-        // Enhanced configuration for small QR codes
+        // Optimized configuration for small QR codes
         const config = {
-            fps: 30, // Increased FPS for better responsiveness
+            fps: 20, // Balanced FPS for performance
             qrbox: function(viewfinderWidth, viewfinderHeight) {
-                // Dynamic QR box sizing - smaller for better small code detection
-                const minEdgePercentage = 0.4; // 40% of the smaller dimension
+                // Smaller QR box for better small code detection
+                const minEdgePercentage = 0.6; // 60% of the smaller dimension
                 const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
                 const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
                 return {
@@ -82,50 +82,30 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                 Html5QrcodeSupportedFormats.CODE_128,
                 Html5QrcodeSupportedFormats.EAN_13,
                 Html5QrcodeSupportedFormats.UPC_A,
-                Html5QrcodeSupportedFormats.CODE_39,
-                Html5QrcodeSupportedFormats.CODE_93,
-                Html5QrcodeSupportedFormats.ITF,
-                Html5QrcodeSupportedFormats.DATA_MATRIX
+                Html5QrcodeSupportedFormats.CODE_39
             ],
             experimentalFeatures: {
                 useBarCodeDetectorIfSupported: true
             },
-            // Additional options for better scanning
-            aspectRatio: 1.0,
-            disableFlip: false,
-            verbose: false
+            supportTorch: true
         };
 
-        // Camera configuration - html5-qrcode expects specific format
+        // Simple camera configuration
         const cameraConfig = {
             facingMode: "environment"
         };
 
-        // Enhanced configuration for better video quality
-        const enhancedConfig = {
-            ...config,
-            videoConstraints: {
-                facingMode: "environment",
-                width: { ideal: 1920, min: 640 },
-                height: { ideal: 1080, min: 480 },
-                focusMode: "continuous",
-                exposureMode: "continuous",
-                whiteBalanceMode: "continuous"
-            }
-        };
-
         try {
-            // Try with enhanced config first
             await html5QrCode.start(
                 cameraConfig,
-                enhancedConfig,
+                config,
                 (decodedText, decodedResult) => {
                     console.log("Scan result:", decodedText);
                     if (onScanSuccess) onScanSuccess(decodedText, decodedResult);
                     setIsScanning(false);
                 },
                 (scanError) => {
-                    // Optional: handle scan errors (don't spam)
+                    // Optional: handle scan errors silently
                 }
             );
 
@@ -133,36 +113,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             setIsInitializing(false);
             
             // Check if flash is available
-            try {
-                const capabilities = html5QrCode.getRunningTrackCapabilities();
-                if (capabilities && capabilities.torch) {
-                    setHasFlash(true);
-                }
-            } catch (capErr) {
-                console.log("Flash capability check failed:", capErr);
-            }
-
-        } catch (err) {
-            console.error("Failed to start scanner with enhanced config:", err);
-            
-            // Fallback to basic config
-            try {
-                await html5QrCode.start(
-                    cameraConfig,
-                    config,
-                    (decodedText, decodedResult) => {
-                        console.log("Scan result:", decodedText);
-                        if (onScanSuccess) onScanSuccess(decodedText, decodedResult);
-                        setIsScanning(false);
-                    },
-                    (scanError) => {
-                        // Optional: handle scan errors
-                    }
-                );
-                setIsScanning(true);
-                setIsInitializing(false);
-                
-                // Check if flash is available
+            setTimeout(() => {
                 try {
                     const capabilities = html5QrCode.getRunningTrackCapabilities();
                     if (capabilities && capabilities.torch) {
@@ -171,12 +122,13 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                 } catch (capErr) {
                     console.log("Flash capability check failed:", capErr);
                 }
-            } catch (fallbackErr) {
-                console.error("Fallback scanner failed:", fallbackErr);
-                setErrorMessage("Camera initialization failed. Please check permissions and try again.");
-                setIsInitializing(false);
-                if (onScanError) onScanError(fallbackErr.message || fallbackErr);
-            }
+            }, 1000); // Wait a bit for camera to initialize
+
+        } catch (err) {
+            console.error("Failed to start scanner:", err);
+            setErrorMessage("Camera initialization failed. Please check permissions and try again.");
+            setIsInitializing(false);
+            if (onScanError) onScanError(err.message || err);
         }
     };
 
@@ -241,7 +193,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                         fontSize: '14px',
                         fontWeight: '500'
                     }}>
-                        Initializing...
+                        Initializing Camera...
                     </div>
                 )}
 
@@ -273,11 +225,12 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                 padding: '10px',
                 borderRadius: '4px'
             }}>
-                <strong>Tips for Small QR Codes:</strong><br/>
-                • Hold device steady and close (5-10cm from code)<br/>
-                • Ensure good lighting or use flash<br/>
-                • Keep QR code flat and parallel to camera<br/>
-                • Clean camera lens if blurry
+                <strong>Tips for Small QR Codes (1cm):</strong><br/>
+                • Hold device 8-12cm from the QR code<br/>
+                • Ensure bright lighting or use flash<br/>
+                • Keep QR code completely flat<br/>
+                • Move slowly until code is detected<br/>
+                • Clean camera lens for better focus
             </div>
         </div>
     );
