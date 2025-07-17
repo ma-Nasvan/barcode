@@ -66,7 +66,7 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
 
         const config = {
             fps: 20,
-            qrbox: function(viewfinderWidth, viewfinderHeight) {
+            qrbox: function (viewfinderWidth, viewfinderHeight) {
                 const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
                 const qrboxSize = Math.floor(minEdgeSize * 0.6);
                 return {
@@ -104,7 +104,13 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             const selectedCameraId = rearCamera ? rearCamera.id : devices[0].id;
 
             await html5QrCode.start(
-                { deviceId: { exact: selectedCameraId } },
+                {
+                    deviceId: { exact: selectedCameraId },
+                    advanced: [
+                        { focusMode: "continuous" }, // may be ignored if not supported
+                        { zoom: 2 } // small zoom helps focus on small codes
+                    ]
+                },
                 config,
                 (decodedText, decodedResult) => {
                     console.log("Scan result:", decodedText);
@@ -157,9 +163,9 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
             />
 
             {errorMessage && (
-                <div style={{ 
-                    color: '#dc3545', 
-                    marginTop: '10px', 
+                <div style={{
+                    color: '#dc3545',
+                    marginTop: '10px',
                     textAlign: 'center',
                     backgroundColor: '#f8d7da',
                     padding: '10px',
@@ -222,20 +228,20 @@ const MobileBarcodeScanner = ({ onScanSuccess, onScanError }) => {
                 )}
             </div>
 
-            <div style={{ 
-                textAlign: 'center', 
-                fontSize: '14px', 
-                color: '#666', 
+            <div style={{
+                textAlign: 'center',
+                fontSize: '14px',
+                color: '#666',
                 marginTop: '15px',
                 backgroundColor: '#e9ecef',
                 padding: '10px',
                 borderRadius: '4px'
             }}>
-                <strong>Tips for Small QR Codes (1cm):</strong><br/>
-                • Hold device 8-12cm from the QR code<br/>
-                • Ensure bright lighting or use flash<br/>
-                • Keep QR code completely flat<br/>
-                • Move slowly until code is detected<br/>
+                <strong>Tips for Small QR Codes (1cm):</strong><br />
+                • Hold device 8-12cm from the QR code<br />
+                • Ensure bright lighting or use flash<br />
+                • Keep QR code completely flat<br />
+                • Move slowly until code is detected<br />
                 • Clean camera lens for better focus
             </div>
         </div>
